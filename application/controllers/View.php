@@ -15,6 +15,15 @@ class View extends CI_Controller
         echo $this->table->generate($query);
     }
 
+    public function json()
+    {
+        $query = $this->db->get('collection');
+        return $this->output
+            ->set_content_type('application/json')
+            ->set_status_header(500)
+            ->set_output(json_encode($query->result()));
+    }
+
     public function insert()
     {
         if ($_SESSION['auth']) {
