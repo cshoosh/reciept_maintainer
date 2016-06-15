@@ -12,24 +12,24 @@ class Receipt extends CI_Controller
     {
         $this->load->library('table');
         $this->db->order_by('date', 'asc');
-        $query = $this->db->get('collection');
+        $query = $this->db->get('wicollection');
 
         echo $this->table->generate($query);
     }
 
-    public function json()
+    public function json($credit)
     {
         $this->db->order_by('date', 'asc');
-        $query = $this->db->get('collection');
+        $query = $this->db->get_where('wicollection', array('credit' => $credit));
         return $this->output
             ->set_content_type('application/json')
-            ->set_status_header(500)
             ->set_output(json_encode($query->result()));
     }
 
     public function update()
     {
-        if ($_SESSION['auth']) {
+        $headers = apache_request_headers();
+        if (isset($headers['Auth']) && $headers['Auth'] === 'eu3euQ81z0AwMxeHSb3d78L5TX83vkp3') {
             $id = $this->input->post('id');
             $amount = $this->input->post('amount');
             $desc = $this->input->post('desc');
@@ -37,8 +37,8 @@ class Receipt extends CI_Controller
             $data = array('amount' => $amount, 'description' => $desc);
 
             $this->db->where('_id', $id);
-            $this->db->update('collection', $data);;
-            echo '1';
+            $ret = $this->db->update('wicollection', $data);;
+            echo $ret;
         } else {
             $this->load->view('errors/authfailed');
         }
@@ -46,14 +46,16 @@ class Receipt extends CI_Controller
 
     public function insert()
     {
-        if ($_SESSION['auth']) {
+        $headers = apache_request_headers();
+        if (isset($headers['Auth']) && $headers['Auth'] === 'eu3euQ81z0AwMxeHSb3d78L5TX83vkp3') {
             $amount = $this->input->post('amount');
             $desc = $this->input->post('desc');
+            $iscredit = $this->input->post('credit');
 
-            $sql = 'INSERT INTO collection (amount,description) VALUES(' . $this->db->escape($amount) . ','
-                . $this->db->escape($desc) . ')';
-            $this->db->query($sql);
-            echo '1';
+            $sql = 'INSERT INTO wicollection (amount,credit,description) VALUES(' . $this->db->escape($amount) . ','
+                . $this->db->escape($iscredit) . ',' . $this->db->escape($desc) . ')';
+            $ret = $this->db->query($sql);
+            echo $ret;
         } else {
             $this->load->view('errors/authfailed');
         }
@@ -61,14 +63,47 @@ class Receipt extends CI_Controller
 
     public function delete($id)
     {
-        if ($_SESSION['auth']) {
+        $headers = apache_request_headers();
+        if (isset($headers['Auth']) && $headers['Auth'] === 'eu3euQ81z0AwMxeHSb3d78L5TX83vkp3') {
             $id = $this->db->escape($id);
-            $sql = 'DELETE FROM collection WHERE _id = ' . $id;
+            $sql = 'DELETE FROM wicollection WHERE _id = ' . $id;
 
-            $this->db->query($sql);
-            echo '1';
+            $ret = $this->db->query($sql);
+            echo $ret;
         } else {
             $this->load->view('errors/authfailed');
+        }
+    }
+
+    public function calculate($type)
+    {
+        $sql = 'SELECT (sum_credit - sum_paid) AS diff, sum_credit, sum_paid FROM (SELECT sum(amount) AS sum_credit FROM wicollection
+                WHERE credit = 0) AS amount1, (SELECT sum(amount) AS sum_paid FROM wicollection WHERE credit != 0) AS amount2';
+        $result = $this->db->query($sql);
+        if ($result) {
+            $row = $result->row();
+            if (isset($row)) {
+                switch ($type) {
+                    case 'all':
+                        echo $row->diff . ',' . $row->sum_credit . ',' . $row->sum_paid;
+                        break;
+                    case 'json':
+                        return $this->output
+                            ->set_content_type('application/json')
+                            ->set_output(json_encode($row));
+                    case 'credit':
+                        echo $row->sum_credit;
+                        break;
+                    case 'paid':
+                        echo $row->sum_paid;
+                        break;
+                    case 'diff':
+                        echo $row->diff;
+                        break;
+                }
+            }
+        } else {
+            echo $result;
         }
     }
 }

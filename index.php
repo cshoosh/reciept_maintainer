@@ -1,11 +1,4 @@
 <?php
-$headers = apache_request_headers();
-$authkey = "eu3euQ81z0AwMxeHSb3d78L5TX83vkp4";
-if (!(isset($headers["Authorization"]) && $headers["Authorization"] === $authkey)) {
-    $_SESSION['auth'] = false;
-} else {
-    $_SESSION['auth'] = true;
-}
 /**
  * CodeIgniter
  *
